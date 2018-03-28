@@ -1,28 +1,81 @@
 
 // Reads a cell at (x+dx, y+dy)
-__device__ int read_cell(int * source_domain, int x, int y, int dx, int dy,
-    unsigned int domain_x, unsigned int domain_y)
+__device__ int read_cell(int * source_domain, int x, int y, int dx, int dy, unsigned int domain_x, unsigned int domain_y)
 {
     x = (unsigned int)(x + dx) % domain_x;	// Wrap around
     y = (unsigned int)(y + dy) % domain_y;
     return source_domain[y * domain_x + x];
 }
 
+__device__ void write_cell(int * source_domain, int x, int y, int dx, int dy, unsigned int domain_x, unsigned int domain_y, int value)
+{
+    x = (unsigned int)(x + dx) % domain_x;	// Wrap around
+    y = (unsigned int)(y + dy) % domain_y;
+    source_domain[y * domain_x + x] = value;
+}
+
+__device__ void update(int * source_domain, int x, int y, int dx, int dy, unsigned int domain_x, unsigned int domain_y, int *nn, int *n1, int *n2)
+{
+	unsigned int cell = read_cell(source_domain,x,y,dx,dy,domain_x,domain_y);
+	if (cell != 0)
+	{
+		(*nn)++;
+		if (cell == 1)
+			(*n1)++;
+		else
+			(*n2)++;
+	}
+}
+
+__device__ void neighbors(int * source_domain, int x, int y, unsigned int domain_x, unsigned int domain_y, int *nn, int *n1, int *n2)
+{
+	int dx,dy;
+
+	(*nn) = 0; (*n1) = 0; (*n2) = 0;
+
+	// same line
+	dx = -1; dy = 0; update(source_domain,x,y,dx,dy,domain_x,domain_y,nn,n1,n2);
+	dx = +1; dy = 0; update(source_domain,x,y,dx,dy,domain_x,domain_y,nn,n1,n2);
+
+	// one line down
+	dx = -1; dy = +1; update(source_domain,x,y,dx,dy,domain_x,domain_y,nn,n1,n2);
+	dx =  0; dy = +1; update(source_domain,x,y,dx,dy,domain_x,domain_y,nn,n1,n2);
+	dx = +1; dy = +1; update(source_domain,x,y,dx,dy,domain_x,domain_y,nn,n1,n2);
+
+	// one line up
+	dx = -1; dy = -1; update(source_domain,x,y,dx,dy,domain_x,domain_y,nn,n1,n2);
+	dx =  0; dy = -1; update(source_domain,x,y,dx,dy,domain_x,domain_y,nn,n1,n2);
+	dx = +1; dy = -1; update(source_domain,x,y,dx,dy,domain_x,domain_y,nn,n1,n2);
+}
+
 // Compute kernel
-__global__ void life_kernel(int * source_domain, int * dest_domain,
-    int domain_x, int domain_y)
+__global__ void life_kernel(int * source_domain, int * dest_domain, int domain_x, int domain_y)
 {
     int tx = blockIdx.x * blockDim.x + threadIdx.x;
     int ty = blockIdx.y;
     
-    // Read cell
-    int myself = read_cell(source_domain, tx, ty, 0, 0,
-	                       domain_x, domain_y);
+    int nn,n1,n2;
     
-    // TODO: Read the 8 neighbors and count number of blue and red
+    // Read cell
+    int myself = read_cell(source_domain, tx, ty, 0, 0, domain_x, domain_y);
+    
+	neighbors(source_domain, tx, ty, domain_x, domain_y, &nn, &n1, &n2);
 
-	// TODO: Compute new value
+	if(myself != 0)
+		// Wrong number of neighbors, the cell dies
+		if(!((nn > 1) && (nn < 4)))
+			myself = 0;
+	// Reproduction, a new cell is born
+	else if(nn == 3)
+	{
+		// Takes on the dominant genus
+		if(n1 >= 2)
+			myself = 1;
+		else
+			myself = 2;
+		change++;
+	}
 	
-	// TODO: Write it in dest_domain
+	write_cell(source_domain, tx, ty, 0, 0, domain_x, domain_y, myself);
 }
 
