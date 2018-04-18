@@ -53,9 +53,9 @@ int main(int argc, char ** argv)
     
     int steps = 2;
     
-    int threads_per_block = 128;
+    int threads_per_block = 64;
     int blocks_x = domain_x / (threads_per_block * cells_per_word);
-    int blocks_y = domain_y;
+    int blocks_y = domain_y / (threads_per_block * cells_per_word);
     
     dim3  grid(blocks_x, blocks_y);	// CUDA grid dimensions
     dim3  threads(threads_per_block);	// CUDA block dimensions
