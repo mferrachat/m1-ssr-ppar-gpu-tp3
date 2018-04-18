@@ -84,6 +84,8 @@ __global__ void life_kernel(int * source_domain, int * dest_domain, int domain_x
 		write_cell(shared_domain, x+1, y+1+1, 0, 0, s_domain_x+2, s_domain_y+2, read_cell(source_domain, tx, ty, 0, +1, domain_x, domain_y))
 	if(x == s_domain_x && y == s_domain_y)
 		write_cell(shared_domain, x+1+1, y+1+1, 0, 0, s_domain_x+2, s_domain_y+2, read_cell(source_domain, tx, ty, +1, +1, domain_x, domain_y))
+	
+	__syncthreads();
     
 	neighbors(shared_domain, x+1, y+1, s_domain_x+2, s_domain_y+2, &nn, &n1, &n2);
 
